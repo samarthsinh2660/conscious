@@ -1,6 +1,6 @@
 import express from 'express';
-import authRoutes from '../modules/auth/auth.routes.js';
-import profileRoutes from '../modules/profile/profile.routes.js';
+import authRoutes from './auth.routes.js';
+import profileRoutes from './profile.routes.js';
 import reflectionRoutes from './reflection.routes.js';
 import analysisRoutes from './analysis.routes.js';
 

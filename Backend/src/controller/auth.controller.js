@@ -1,5 +1,5 @@
-import authService from '../../services/auth.service.js';
-import { asyncHandler } from '../../utils/error.js';
+import authService from '../services/auth.service.js';
+import { asyncHandler } from '../utils/error.js';
 
 export const register = asyncHandler(async (req, res) => {
   const { email, password, fullName } = req.body;

@@ -1,8 +1,8 @@
 import express from 'express';
 import { body } from 'express-validator';
-import { register, login, getCurrentUser } from './auth.controller.js';
-import { authenticateToken } from '../../middleware/auth.middleware.js';
-import { validate } from '../../middleware/validation.middleware.js';
+import { register, login, getCurrentUser } from '../controller/auth.controller.js';
+import { authenticateToken } from '../middleware/auth.middleware.js';
+import { validate } from '../middleware/validation.middleware.js';
 
 const router = express.Router();
 

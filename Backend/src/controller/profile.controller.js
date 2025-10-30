@@ -1,5 +1,5 @@
-import profileService from '../../services/profile.service.js';
-import { asyncHandler } from '../../utils/error.js';
+import profileService from '../services/profile.service.js';
+import { asyncHandler } from '../utils/error.js';
 
 export const createOrUpdateProfile = asyncHandler(async (req, res) => {
   const userId = req.user.userId;

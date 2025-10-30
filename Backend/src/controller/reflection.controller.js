@@ -1,5 +1,5 @@
-import { supabase } from '../../config/database.js';
-import { getGeminiModel } from '../../config/gemini.js';
+import { supabase } from '../config/database.js';
+import { getGeminiModel } from '../config/gemini.js';
 
 export const createReflection = async (req, res) => {
   try {

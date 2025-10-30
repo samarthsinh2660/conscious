@@ -1,8 +1,8 @@
 import express from 'express';
 import { body } from 'express-validator';
-import { createOrUpdateProfile, getProfile } from './profile.controller.js';
-import { authenticateToken } from '../../middleware/auth.middleware.js';
-import { validate } from '../../middleware/validation.middleware.js';
+import { createOrUpdateProfile, getProfile } from '../controller/profile.controller.js';
+import { authenticateToken } from '../middleware/auth.middleware.js';
+import { validate } from '../middleware/validation.middleware.js';
 
 const router = express.Router();
 
