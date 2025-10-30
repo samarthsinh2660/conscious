@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { PlusCircle, CheckCircle, Sparkles } from 'lucide-react';
 import { Button } from '../../../shared/components/Button';
 import { Modal } from '../../../shared/components/Modal';
@@ -15,7 +15,19 @@ export const DashboardPage = () => {
   const [analysisLoading, setAnalysisLoading] = useState(false);
 
   useEffect(() => {
-    loadDashboardData();
+    let isMounted = true;
+    
+    const loadData = async () => {
+      if (isMounted) {
+        await loadDashboardData();
+      }
+    };
+    
+    loadData();
+    
+    return () => {
+      isMounted = false;
+    };
   }, []);
 
   const loadDashboardData = async () => {
@@ -35,22 +47,43 @@ export const DashboardPage = () => {
     }
   };
 
-  const handleReflectionSuccess = () => {
+  const handleReflectionSuccess = async () => {
     setShowReflectionModal(false);
     setTodayReflectionExists(true);
     setAnalysisLoading(true);
     
-    // Wait a bit for AI analysis to be generated
-    setTimeout(async () => {
+    // Poll for AI analysis with retries
+    const pollForAnalysis = async (attempts = 0, maxAttempts = 10) => {
       try {
         const analysisData = await analysisAPI.getLatest();
-        setLatestAnalysis(analysisData.analysis);
+        
+        if (analysisData.analysis) {
+          setLatestAnalysis(analysisData.analysis);
+          setAnalysisLoading(false);
+          return;
+        }
+        
+        // If no analysis yet and haven't exceeded max attempts, try again
+        if (attempts < maxAttempts) {
+          setTimeout(() => pollForAnalysis(attempts + 1, maxAttempts), 3000);
+        } else {
+          // Max attempts reached, stop loading
+          setAnalysisLoading(false);
+        }
       } catch (error) {
         console.error('Error loading analysis:', error);
-      } finally {
-        setAnalysisLoading(false);
+        
+        // Retry on error if haven't exceeded max attempts
+        if (attempts < maxAttempts) {
+          setTimeout(() => pollForAnalysis(attempts + 1, maxAttempts), 3000);
+        } else {
+          setAnalysisLoading(false);
+        }
       }
-    }, 2000);
+    };
+    
+    // Start polling after a brief delay to allow backend to start processing
+    setTimeout(() => pollForAnalysis(), 2000);
   };
 
   if (loading) {
@@ -85,7 +118,7 @@ export const DashboardPage = () => {
                   : 'Take a moment to reflect on your day and gain valuable insights'}
               </p>
               {todayReflectionExists ? (
-                <div className="flex items-center gap-2 bg-white bg-opacity-20 rounded-lg px-4 py-2 inline-flex">
+                <div className="inline-flex items-center gap-2 bg-white bg-opacity-20 rounded-lg px-4 py-2">
                   <CheckCircle className="w-5 h-5" />
                   <span className="font-medium">Completed for today</span>
                 </div>
@@ -114,10 +147,11 @@ export const DashboardPage = () => {
               <div className="text-center">
                 <Loader size="lg" />
                 <p className="text-gray-600 mt-4">Generating your personalized insights...</p>
+                <p className="text-gray-500 text-sm mt-2">This may take 15-30 seconds...</p>
               </div>
             </div>
           ) : (
-            <AnalysisCard analysis={latestAnalysis} />
+            <AnalysisCard analysis={latestAnalysis} isLoading={false} />
           )}
         </div>
 

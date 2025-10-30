@@ -1,10 +1,17 @@
 import { Sparkles, Target, Heart } from 'lucide-react';
 
-export const AnalysisCard = ({ analysis }) => {
+export const AnalysisCard = ({ analysis, isLoading }) => {
   if (!analysis) {
     return (
-      <div className="bg-white rounded-xl shadow-sm p-6 border border-gray-200">
-        <p className="text-gray-500 text-center">No analysis available yet. Submit your daily reflection to get personalized insights!</p>
+      <div className="bg-white rounded-xl shadow-sm p-8 border border-gray-200">
+        <div className="text-center">
+          <Sparkles className="w-12 h-12 text-gray-300 mx-auto mb-3" />
+          <p className="text-gray-500">
+            {isLoading 
+              ? 'Your AI insights are being generated. This may take a few moments...'
+              : 'No analysis available yet. Submit your daily reflection to get personalized insights!'}
+          </p>
+        </div>
       </div>
     );
   }

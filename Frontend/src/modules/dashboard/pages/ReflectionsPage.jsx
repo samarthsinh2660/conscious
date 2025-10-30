@@ -15,18 +15,34 @@ export const ReflectionsPage = () => {
   const [showDetailModal, setShowDetailModal] = useState(false);
 
   useEffect(() => {
-    loadReflections();
+    let isMounted = true;
+    
+    const loadData = async () => {
+      if (isMounted) {
+        await loadReflections(isMounted);
+      }
+    };
+    
+    loadData();
+    
+    return () => {
+      isMounted = false;
+    };
   }, []);
 
-  const loadReflections = async () => {
+  const loadReflections = async (isMounted = true) => {
     setLoading(true);
     try {
       const data = await reflectionAPI.getAll({ limit: 30 });
-      setReflections(data.reflections);
+      if (isMounted) {
+        setReflections(data.reflections);
+      }
     } catch (error) {
       console.error('Error loading reflections:', error);
     } finally {
-      setLoading(false);
+      if (isMounted) {
+        setLoading(false);
+      }
     }
   };
 

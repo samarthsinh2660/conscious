@@ -10,10 +10,22 @@ export const ProgressPage = () => {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    loadProgressData();
+    let isMounted = true;
+    
+    const loadData = async () => {
+      if (isMounted) {
+        await loadProgressData(isMounted);
+      }
+    };
+    
+    loadData();
+    
+    return () => {
+      isMounted = false;
+    };
   }, []);
 
-  const loadProgressData = async () => {
+  const loadProgressData = async (isMounted = true) => {
     setLoading(true);
     try {
       const [reflectionData, analysisData] = await Promise.all([
@@ -21,12 +33,16 @@ export const ProgressPage = () => {
         analysisAPI.getAll({ limit: 30 }),
       ]);
       
-      setReflections(reflectionData.reflections);
-      setAnalyses(analysisData.analyses);
+      if (isMounted) {
+        setReflections(reflectionData.reflections);
+        setAnalyses(analysisData.analyses);
+      }
     } catch (error) {
       console.error('Error loading progress data:', error);
     } finally {
-      setLoading(false);
+      if (isMounted) {
+        setLoading(false);
+      }
     }
   };
 
