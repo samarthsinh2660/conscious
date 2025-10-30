@@ -1,36 +1,51 @@
 # Consciousness App - Backend API
 
-Production-ready Node.js/Express backend with clean architecture, repository pattern, and service layer.
+Production-ready Node.js/Express backend with enterprise-level architecture patterns: clean separation of concerns, repository pattern, service layer, and centralized error handling.
 
-## Architecture
+## Architecture Overview
+
+This backend follows a layered architecture pattern:
+
+```
+Request → Middleware → Controller → Service → Repository → Database
+                                ↓
+                            Response
+```
+
+### Layer Responsibilities
+
+1. **Controllers** - Handle HTTP requests/responses, extract data, call services
+2. **Services** - Business logic, data validation, orchestrate repositories
+3. **Repositories** - Database queries only (CRUD operations)
+4. **Utilities** - Reusable helper functions (auth, errors)
+5. **Middleware** - Authentication, validation, error handling
+
+## Project Structure
 
 ```
 src/
 ├── config/           # Configuration files
 │   ├── database.js   # Supabase client
 │   └── gemini.js     # Gemini AI client
-├── controllers/      # Request handlers
+├── controller/       # HTTP request handlers
+│   ├── auth.controller.js
+│   ├── profile.controller.js
 │   ├── analysis.controller.js
 │   └── reflection.controller.js
 ├── database/         # Database schemas
-│   └── schema.sql    # Complete SQL schema
+│   └── schema.sql    # Complete SQL schema with triggers
 ├── middleware/       # Express middleware
 │   ├── auth.middleware.js
 │   └── validation.middleware.js
-├── modules/          # Feature modules
-│   ├── auth/
-│   │   ├── auth.controller.js
-│   │   └── auth.routes.js
-│   └── profile/
-│       ├── profile.controller.js
-│       └── profile.routes.js
-├── repositories/     # Data access layer
+├── repositories/     # Data access layer (SQL queries)
 │   ├── user.repository.js
 │   ├── profile.repository.js
 │   ├── reflection.repository.js
 │   └── analysis.repository.js
 ├── routes/           # Route definitions
-│   ├── index.js
+│   ├── index.js      # Main router
+│   ├── auth.routes.js
+│   ├── profile.routes.js
 │   ├── reflection.routes.js
 │   └── analysis.routes.js
 ├── services/         # Business logic layer
@@ -38,11 +53,11 @@ src/
 │   ├── profile.service.js
 │   ├── reflection.service.js
 │   ├── analysis.service.js
-│   └── gemini.service.js
+│   └── gemini.service.js  # AI prompts & logic
 ├── utils/            # Utility functions
-│   ├── error.js      # Error handling
-│   └── auth.js       # Auth utilities
-└── server.js         # Entry point
+│   ├── error.js      # Error classes & handler
+│   └── auth.js       # JWT & password utilities
+└── server.js         # Application entry point
 ```
 
 ## Setup Instructions
@@ -123,34 +138,88 @@ Server runs on `http://localhost:5000`
 
 ## Architecture Patterns
 
-### Repository Pattern
-All database queries are in repository files. Controllers never directly access the database.
+### 1. Repository Pattern
+All database queries are isolated in repository files. Controllers never directly access the database.
+
+**Benefits:**
+- Single source of truth for data access
+- Easy to test and mock
+- Easy to switch databases
+- Reusable query functions
 
 ```javascript
 // repositories/user.repository.js
-export const userRepository = {
-  async create(userData) { /* SQL query */ },
-  async findByEmail(email) { /* SQL query */ },
-  async findById(id) { /* SQL query */ }
-};
+class UserRepository {
+  async create(userData) {
+    const { data, error } = await supabase
+      .from('users')
+      .insert([userData])
+      .select()
+      .single();
+    if (error) throw error;
+    return data;
+  }
+  
+  async findByEmail(email) {
+    const { data, error } = await supabase
+      .from('users')
+      .select('*')
+      .eq('email', email)
+      .single();
+    if (error && error.code !== 'PGRST116') throw error;
+    return data || null;
+  }
+}
+
+export default new UserRepository();
 ```
 
-### Service Layer
-Business logic is in service files. Services use repositories for data access.
+### 2. Service Layer
+Business logic is in service files. Services use repositories for data access and contain no HTTP handling.
+
+**Benefits:**
+- Business logic separated from HTTP concerns
+- Reusable across different controllers
+- Easy to test independently
+- Clear single responsibility
 
 ```javascript
 // services/auth.service.js
-export const authService = {
+class AuthService {
   async register(userData) {
-    // Business logic
-    const user = await userRepository.create(userData);
-    return user;
+    // Check business rules
+    const existingUser = await userRepository.findByEmail(userData.email);
+    if (existingUser) {
+      throw new ConflictError('User already exists');
+    }
+    
+    // Hash password
+    const hashedPassword = await hashPassword(userData.password);
+    
+    // Create user
+    const user = await userRepository.create({
+      ...userData,
+      password_hash: hashedPassword
+    });
+    
+    // Generate token
+    const token = generateToken({ userId: user.id, email: user.email });
+    
+    return { token, user };
   }
-};
+}
+
+export default new AuthService();
 ```
 
-### Controller Layer
-Controllers handle HTTP requests/responses. They call services for business logic.
+### 3. Controller Layer
+Controllers are thin layers that handle HTTP requests/responses. They call services for business logic.
+
+**Benefits:**
+- Simple and focused
+- Easy to understand
+- Minimal logic
+- Clear HTTP handling
 
 ```javascript
 // controllers/auth.controller.js
@@ -160,25 +229,70 @@ export const register = asyncHandler(async (req, res) => {
 });
 ```
 
-### Error Handling
-Centralized error handling with custom error classes.
+### 4. Error Handling
+Centralized error handling with custom error classes and async handler wrapper.
+
+**Benefits:**
+- Consistent error responses
+- Proper HTTP status codes
+- Automatic error catching
+- Clean error messages
 
 ```javascript
 // utils/error.js
-export class AppError extends Error { /* ... */ }
-export class ValidationError extends AppError { /* ... */ }
-export const errorHandler = (err, req, res, next) => { /* ... */ };
-```
+export class AppError extends Error {
+  constructor(message, statusCode) {
+    super(message);
+    this.statusCode = statusCode;
+    this.isOperational = true;
+  }
+}
 
-### Async Handler
-Wraps async functions to catch errors automatically.
+export class ValidationError extends AppError {
+  constructor(message) {
+    super(message, 400);
+  }
+}
 
-```javascript
+export const errorHandler = (err, req, res, next) => {
+  const statusCode = err.statusCode || 500;
+  res.status(statusCode).json({
+    error: err.message,
+    ...(process.env.NODE_ENV === 'development' && { stack: err.stack })
+  });
+};
+
 export const asyncHandler = (fn) => {
   return (req, res, next) => {
     Promise.resolve(fn(req, res, next)).catch(next);
   };
 };
+```
+
+### 5. Gemini AI Service
+Centralized AI prompt engineering and response parsing.
+
+**Benefits:**
+- Easy to modify prompts in one place
+- Structured prompt building
+- Consistent response parsing
+- Error handling for AI failures
+
+```javascript
+// services/gemini.service.js
+class GeminiService {
+  async generateReflectionAnalysis(userProfile, currentReflection, previousReflections) {
+    const prompt = this.buildAnalysisPrompt(userProfile, currentReflection, previousReflections);
+    const result = await model.generateContent(prompt);
+    return this.parseAnalysisResponse(result);
+  }
+  
+  buildAnalysisPrompt(profile, reflection, history) {
+    return `Context: ${profile.self_introduction}\n\nCurrent: ${reflection.day_summary}\n\nAnalyze...`;
+  }
+}
+
+export default new GeminiService();
 ```
 
 ## Key Features
@@ -209,3 +323,63 @@ export const asyncHandler = (fn) => {
 - Centralized error handling
 - Async/await throughout
 - No SQL in controllers
+- Class-based architecture with singleton pattern
+- JSDoc documentation
+- Consistent error responses
+
+## Data Flow Example
+
+### Creating a Daily Reflection:
+
+1. **Route** → `POST /api/reflections`
+2. **Middleware** → `authenticateToken` validates JWT
+3. **Middleware** → `validate` checks input with express-validator
+4. **Controller** → `createReflection` extracts user ID and body
+5. **Service** → `reflectionService.createReflection()`
+   - Checks if today's reflection already exists (business rule)
+   - Calls repository to create reflection
+   - Triggers AI analysis asynchronously
+6. **Repository** → `reflectionRepository.create()`
+   - Executes Supabase INSERT query
+   - Returns created reflection
+7. **Service** → `geminiService.generateReflectionAnalysis()`
+   - Fetches user profile for context
+   - Fetches previous reflections for patterns
+   - Builds AI prompt with all context
+   - Calls Gemini API
+   - Parses structured response
+8. **Repository** → `analysisRepository.create()`
+   - Stores AI analysis in database
+9. **Controller** → Returns JSON response with reflection
+
+## Benefits of This Architecture
+
+### ✅ Maintainability
+- Clear separation of concerns
+- Easy to find and modify code
+- Each file has single responsibility
+- Consistent patterns throughout
+
+### ✅ Testability
+- Services can be unit tested independently
+- Repositories can be mocked easily
+- Controllers are thin and simple
+- Business logic isolated from HTTP
+
+### ✅ Scalability
+- Easy to add new features
+- Easy to modify existing features
+- Clear patterns to follow
+- Modular structure
+
+### ✅ Security
+- Centralized auth logic
+- Consistent error handling
+- Input validation at multiple layers
+- No SQL injection (Supabase client)
+
+### ✅ Team Collaboration
+- Clear folder structure
+- Consistent patterns
+- Easy onboarding for new developers
+- Self-documenting code

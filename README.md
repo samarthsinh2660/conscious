@@ -1,6 +1,6 @@
 # Consciousness App - Self Reflection & Personal Growth
 
-A full-stack web application that helps users develop self-awareness through daily reflections and AI-powered insights. Built with React, Node.js, Express, PostgreSQL (Supabase), and Google Gemini AI.
+A production-ready full-stack web application that helps users develop self-awareness through daily reflections and AI-powered insights. Built with React, Node.js, Express, PostgreSQL (Supabase), and Google Gemini AI.
 
 ## Overview
 
@@ -9,6 +9,23 @@ The Consciousness App guides users through a journey of self-discovery by:
 2. **Daily Reflections**: 7 thoughtful questions answered each evening
 3. **AI Analysis**: Personalized insights, recommendations, and motivation from Gemini AI
 4. **Progress Tracking**: Visual representation of growth over time
+
+## Architecture
+
+This project follows enterprise-level architecture patterns with clean separation of concerns:
+
+### Backend Architecture
+- **Repository Pattern**: All database queries isolated in repository layer
+- **Service Layer**: Business logic separated from HTTP handling
+- **Controller Layer**: Thin controllers for request/response handling
+- **Middleware**: Authentication, validation, and error handling
+- **Utilities**: Reusable helper functions for auth and errors
+
+### Frontend Architecture
+- **Module-based**: Features organized by domain (auth, onboarding, dashboard)
+- **API Layer**: Centralized API calls with axios interceptors
+- **Protected Routes**: Authentication guards for secure pages
+- **Shared Components**: Reusable UI components and custom hooks
 
 ## Features
 
@@ -82,14 +99,14 @@ conscious/
 │
 └── Backend/              # Express API
     ├── src/
-    │   ├── config/       # Configuration
-    │   ├── middleware/   # Middleware
-    │   ├── modules/      # Feature modules
-    │   │   ├── auth/
-    │   │   ├── profile/
-    │   │   ├── reflection/
-    │   │   └── analysis/
-    │   ├── routes/       # Route aggregator
+    │   ├── config/       # Configuration (database, gemini)
+    │   ├── controller/   # HTTP request handlers
+    │   ├── database/     # SQL schemas
+    │   ├── middleware/   # Auth & validation
+    │   ├── repositories/ # Data access layer
+    │   ├── routes/       # Route definitions
+    │   ├── services/     # Business logic & AI
+    │   ├── utils/        # Error handling & auth utilities
     │   └── server.js     # Entry point
     └── package.json
 ```
